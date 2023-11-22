@@ -1,30 +1,175 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
-    <title>MQTT Over WebSockets Publisher</title>
-    <link rel="stylesheet" href="pub.css" />
-    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-  </head>
-  <body>
-    <h1>MQTT Over WebSockets</h1>
-    <h2>Publisher</h2>
-    <div class="line"></div>
-    <ul class="wrapper">
-      <li class="form-row">
-        <label for="topic">Topic</label>
-        <input type="text" id="topic" />
-      </li>
-      <li class="form-row">
-        <label for="message">Message</label>
-        <input type="text" id="message" />
-      </li>
-      <li class="form-row">
-        <button type="button" class="publish">Publish</button>
-      </li>
-    </ul>
-    <script src="pu.js"></script>
-  </body>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MQTT Dashboard</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        .status-led {
+            height: 15px;
+            width: 15px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+        }
+        .connected { background-color: green; }
+        .disconnected { background-color: red; }
+        .message-box {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-top: 10px;
+            background-color: #f9f9f9;
+        }
+        .btn-custom {
+            margin: 5px;
+        }
+        .card-title {
+            display: inline-block;
+            margin-right: 10px;
+        }
+        .status-text {
+            display: inline-block;
+        }
+        /* Custom styles for images */
+        .logo {
+            max-height: 100px;
+            display: block;
+            margin: auto;
+        }
+        /* Ensure the images are aligned nicely */
+        .header {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+    </style>
+</head>
+<body class="container">
+    <!-- Header with two images -->
+    <div class="header my-3">
+        <!-- Logo on the left -->
+        <img src="Robogio.webp" alt="Company Logo" class="logo mr-2">
+        
+        <!-- Another image on the right -->
+        <img src="Technopng.png" alt="Techno Logo" class="logo ml-2">
+    </div>
+
+    <!-- Status Message with Bootstrap classes and custom LED indicator -->
+    <p id="statusMessage" class="text-center">
+        <span class="status-led disconnected" id="statusLed"></span>
+        Not Connected
+    </p>
+
+    <!-- Toggle Buttons with Bootstrap classes -->
+    <div class="text-center">
+        <button id="toggleShutoff" class="btn btn-primary btn-custom">Turn ON Shutoff</button>
+        <button id="toggleCO2" class="btn btn-primary btn-custom">Turn ON CO2</button>
+    </div>
+
+    <!-- Receiving Boxes with Bootstrap Card classes -->
+    <div class="card message-box">
+        <div class="card-body">
+            <h5 class="card-title">Machine OFF/ON:</h5>
+            <span class="status-text" id="shutoffMsg">OFF</span>
+        </div>
+    </div>
+    <div class="card message-box">
+        <div class="card-body">
+            <h5 class="card-title">CO2 Status:</h5>
+            <span class="status-text" id="co2Status">OFF</span>
+        </div>
+    </div>
+    <div class="card message-box">
+        <div class="card-body">
+            <h5 class="card-title">Tank Temperature:</h5>
+            <span class="status-text" id="tempMsg">None</span>
+        </div>
+    </div>
+    <div class="card message-box">
+        <div class="card-body">
+            <h5 class="card-title">Tank Level:</h5>
+            <span class="status-text" id="levelMsg">None</span>
+        </div>
+    </div>
+
+    <!-- Include MQTT.js from CDN and Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/mqtt/dist/mqtt.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // MQTT Broker Details
+        const brokerUrl = 'ws://172.16.1.15:9001';
+        const shutoffTopic = 'shutoffT1';
+        const co2Topic = 'co2T1';
+        const tempTopic = 'tank1Temp';
+        const levelTopic = 'tank1Lvl';
+
+        // MQTT Client
+        const client = mqtt.connect(brokerUrl);
+
+        // Toggle States
+        let isShutoffOn = false;
+        let isCO2On = false;
+
+        // Function to handle message reception
+        client.on('message', function (topic, message) {
+            let msgText = message.toString();
+
+            if (topic === shutoffTopic) {
+                document.getElementById('shutoffMsg').innerText = msgText === '1' ? 'ON' : 'OFF';
+            } else if (topic === co2Topic) {
+                document.getElementById('co2Status').innerText = msgText === '1' ? 'ON' : 'OFF';
+            } else if (topic === tempTopic) {
+                document.getElementById('tempMsg').innerText = msgText;
+            } else if (topic === levelTopic) {
+                const levelStatus = msgText === '1' ? 'LOW level' : 'NORMAL';
+                document.getElementById('levelMsg').innerText = levelStatus;
+            }
+        });
+
+        // Connect to MQTT broker
+        client.on('connect', function () {
+            document.getElementById('statusMessage').innerHTML = 'Connected';
+            document.getElementById('statusMessage').style.color = 'green';
+
+            // Subscribe to the topics
+            client.subscribe(shutoffTopic);
+            client.subscribe(co2Topic);
+            client.subscribe(tempTopic);
+            client.subscribe(levelTopic);
+        });
+
+        // Handle disconnection
+        client.on('offline', function() {
+            document.getElementById('statusMessage').innerHTML = 'Not Connected';
+            document.getElementById('statusMessage').style.color = 'red';
+        });
+
+        // Toggle Button Click Event Handlers
+        document.getElementById('toggleShutoff').addEventListener('click', function () {
+            isShutoffOn = !isShutoffOn;
+            updateToggleButton('toggleShutoff', isShutoffOn, 'Shutoff');
+            client.publish(shutoffTopic, isShutoffOn ? '1' : '0');
+        });
+
+        document.getElementById('toggleCO2').addEventListener('click', function () {
+            isCO2On = !isCO2On;
+            updateToggleButton('toggleCO2', isCO2On, 'CO2');
+            client.publish(co2Topic, isCO2On ? '1' : '0');
+        });
+
+        // Update Toggle Button Text
+        function updateToggleButton(buttonId, isOn, label) {
+            const buttonText = isOn ? `Turn OFF ${label}` : `Turn ON ${label}`;
+            document.getElementById(buttonId).innerHTML = buttonText;
+            // Update status display
+            if(buttonId === 'toggleShutoff') {
+                document.getElementById('shutoffMsg').innerText = isShutoffOn ? 'ON' : 'OFF';
+            }
+            if(buttonId === 'toggleCO2') {
+                document.getElementById('co2Status').innerText = isCO2On ? 'ON' : 'OFF';
+            }
+        }
+    </script>
+</body>
 </html>
