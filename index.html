@@ -120,7 +120,8 @@
             } else if (topic === co2Topic) {
                 document.getElementById('co2Status').innerText = msgText === '1' ? 'ON' : 'OFF';
             } else if (topic === tempTopic) {
-                document.getElementById('tempMsg').innerText = msgText;
+                // Append "F" to the temperature value
+                document.getElementById('tempMsg').innerText = msgText + ' F';
             } else if (topic === levelTopic) {
                 const levelStatus = msgText === '1' ? 'LOW level' : 'NORMAL';
                 document.getElementById('levelMsg').innerText = levelStatus;
